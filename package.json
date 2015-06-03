@@ -4,7 +4,10 @@
   "description": "Async.js style utility belt for the promise pattern",
   "main": "promsync.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "babel -o promsync.js promsync.es",
+    "link-jspm": "nodemon -x \"npm run build && jspm link npm:promsync -y\" -e es",
+    "prepublish": "npm run build",
+    "test-watch": "mocha --watch --growl --check-leaks --compilers es:babel/register"
   },
   "repository": {
     "type": "git",
@@ -20,5 +23,10 @@
   "bugs": {
     "url": "https://github.com/johngeorgewright/promsync/issues"
   },
-  "homepage": "https://github.com/johngeorgewright/promsync#readme"
+  "homepage": "https://github.com/johngeorgewright/promsync#readme",
+  "devDependencies": {
+    "babel": "^5.4.7",
+    "chai": "^2.3.0",
+    "mocha": "^2.2.5"
+  }
 }
