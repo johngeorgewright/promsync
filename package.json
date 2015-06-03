@@ -1,0 +1,24 @@
+{
+  "name": "promsync",
+  "version": "0.0.0",
+  "description": "Async.js style utility belt for the promise pattern",
+  "main": "promsync.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johngeorgewright/promsync.git"
+  },
+  "keywords": [
+    "async",
+    "promise",
+    "utility"
+  ],
+  "author": "John Wright <johngeorge.wright@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/johngeorgewright/promsync/issues"
+  },
+  "homepage": "https://github.com/johngeorgewright/promsync#readme"
+}
