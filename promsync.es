@@ -1,3 +1,5 @@
+class StopError extends Error {}
+
 export default class Promsync extends Promise {}
 
 function each(arr, iterator) {
@@ -223,8 +225,9 @@ function parallelLimitObj(promise, tasks, limit) {
     let keys = Object.keys(tasks);
     let length = keys.length;
     let result = {};
-    function createChunk(selection) {
+    function createChunk(i) {
         let chunk = {};
+        let selection = keys.slice(i, i + limit);
         selection.forEach(key => chunk[key] = tasks[key]);
         return chunk;
     }
@@ -232,7 +235,7 @@ function parallelLimitObj(promise, tasks, limit) {
         Object.assign(result, value);
     }
     for (let i = 0; i < length; i += limit) {
-        let chunk = createChunk(keys.slice(i, i + limit));
+        let chunk = createChunk(i);
         promise = promise
             .then(parallelObj(promise, chunk))
             .then(assign);
@@ -244,6 +247,31 @@ function parallelLimit(tasks, limit) {
     return Array.isArray(tasks)
         ? parallelLimitArray(this, tasks, limit)
         : parallelLimitObj(this, tasks, limit);
+}
+
+function recurWhilst(promise, test, fn) {
+    promise = promise
+        .then(() => test())
+        .then(passed => {
+            if (passed) fn();
+            else return new StopError();
+        });
+    return promise.then(() => recurWhilst(promise, test, fn));
+}
+
+function whilst(test, fn) {
+    return this
+        .then(() => recurWhilst(this, test, fn))
+        .catch(err => {
+            if (!(err instanceof StopError)) {
+                return err;
+            }
+        });
+}
+
+function doWhilst(fn, test) {
+    let promise = this.then(() => fn());
+    return whilst.call(this, test, fn);
 }
 
 let methods = {
@@ -272,7 +300,8 @@ let methods = {
     every: every,
     series: series,
     parallel: parallel,
-    parallelLimit: parallelLimit
+    parallelLimit: parallelLimit,
+    whilst: whilst
 };
 
 Object.keys(methods).forEach(name => {
