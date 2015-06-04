@@ -2,26 +2,75 @@ class StopError extends Error {}
 
 export default class Promsync extends Promise {}
 
-function each(arr, iterator) {
-    return Promsync.all(arr.map(iterator));
+function resolve(it) {
+    return it;
 }
 
-function eachSeries(arr, iterator) {
+function each(arr, iterator=resolve) {
     let promise = this;
-    arr.forEach((item, i) => {
-        promise = promise.then(() => iterator(item, i));
+    let result = [];
+    let promises = arr.map((item, i) => {
+        return promise
+            .then(() => item)
+            .then(value => {
+                result.push(value);
+                return iterator(value, i);
+            });
     });
-    return promise;
+    return Promsync.all(promises).then(() => result);
 }
 
-function eachLimit(arr, limit, iterator) {
+function eachSeries(arr, iterator=resolve) {
+    let result = [];
+    return arr
+        .reduce((promise, item, i) => {
+            return promise
+                .then(() => item)
+                .then(value => {
+                    result.push(value);
+                    return iterator(item, i);
+                });
+        }, this)
+        .then(() => result);
+}
+
+function eachLimit(arr, limit, iterator=resolve) {
     let promise = this;
     let length = arr.length;
-    for (let i = 0; i < length; i += limit) {
-        let chunk = arr.slice(i, i + limit);
-        promise = promise.then(each.call(this, chunk, iterator));
+    let result = [];
+    function concat(value) {
+        result = result.concat(value);
     }
-    return promise;
+    function chunkResolver(index) {
+        let chunkPromise = promise;
+        let chunkResult = [];
+        let chunk = arr.slice(index, index + limit);
+        let promises = chunk.map((item, chunkIndex) => {
+            chunkIndex += index;
+            return chunkPromise
+                .then(() => item)
+                .then(value => {
+                    chunkResult.push(value);
+                    return iterator(value, chunkIndex);
+                });
+        });
+        return () => Promsync.all(promises).then(() => chunkResult);
+    }
+    for (let i = 0; i < length; i += limit) {
+        promise = promise
+            .then(chunkResolver(i))
+            .then(concat);
+    }
+    return promise.then(() => result);
+}
+
+function map(arr, iterator=resolve) {
+    let promises = arr.map((item, i) => {
+        return this
+            .then(() => item)
+            .then(value => iterator(value, i));
+    });
+    return Promsync.all(promises);
 }
 
 function mapSeries(arr, iterator) {
@@ -252,10 +301,7 @@ function parallelLimit(tasks, limit) {
 function recurWhilst(promise, test, fn) {
     promise = promise
         .then(() => test())
-        .then(passed => {
-            if (passed) fn();
-            else return new StopError();
-        });
+        .then(passed => passed ? fn() : new StopError());
     return promise.then(() => recurWhilst(promise, test, fn));
 }
 
@@ -278,7 +324,7 @@ let methods = {
     each: each,
     eachSeries: eachSeries,
     eachLimit: eachLimit,
-    map: each,
+    map: map,
     mapSeries: mapSeries,
     mapLimit: eachLimit,
     forEachOf: forEachOf,
@@ -307,7 +353,7 @@ let methods = {
 Object.keys(methods).forEach(name => {
     let fn = methods[name];
     Promsync[name] = fn.bind(Promsync.resolve(null));
-    Promsync.prototype[name] = function (...yargs) {
-        return this.then((...xargs) => fn.call(this, ...xargs, ...yargs));
+    Promsync.prototype[name] = function (...args) {
+        return fn.apply(this, args);
     };
 });
