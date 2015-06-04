@@ -200,7 +200,7 @@ function parallelObj(promise, tasks) {
 
 function parallel(tasks) {
     return Array.isArray(tasks)
-        ? parallelArray(this, tasks)
+        ? parallelArray(tasks)
         : parallelObj(this, tasks);
 }
 
