@@ -292,12 +292,12 @@ function parallelArray(promise, tasks) {
 
 function parallelObj(promise, tasks) {
   let result = {};
-  let promises = [];
-  Object.keys(tasks).forEach(key => {
-    let task = tasks[key];
-    let parallelPromise = promise.then(() => task());
-    result[key] = promise;
-    promises.push(parallelPromise);
+  let promises = Object.keys(tasks).map(key => {
+    let item = tasks[key];
+    return promise
+      .then(() => item)
+      .then(task => task())
+      .then(value => result[key] = value);
   });
   return Promsync.all(promises).then(() => result);
 }
@@ -312,20 +312,17 @@ function parallelLimitArray(promise, tasks, limit) {
   let length = tasks.length;
   let result = [];
   function concat(value) {
-    result.concat(value);
+    result = result.concat(value);
   }
   for (let i = 0; i < length; i += limit) {
     let chunk = tasks.slice(i, i + limit);
-    promise = promise
-      .then(parallelArray(promise, chunk))
-      .then(concat);
+    promise = parallelArray(promise, chunk).then(concat);
   }
   return promise.then(() => result);
 }
 
 function parallelLimitObj(promise, tasks, limit) {
   let keys = Object.keys(tasks);
-  let length = keys.length;
   let result = {};
   function createChunk(i) {
     let chunk = {};
@@ -336,11 +333,9 @@ function parallelLimitObj(promise, tasks, limit) {
   function assign(value) {
     Object.assign(result, value);
   }
-  for (let i = 0; i < length; i += limit) {
+  for (let i = 0; i < keys.length; i += limit) {
     let chunk = createChunk(i);
-    promise = promise
-      .then(parallelObj(promise, chunk))
-      .then(assign);
+    promise = parallelObj(promise, chunk).then(assign);
   }
   return promise.then(() => result);
 }
@@ -354,7 +349,10 @@ function parallelLimit(tasks, limit) {
 function recurWhilst(promise, test, fn) {
   promise = promise
     .then(() => test())
-    .then(passed => passed ? fn() : new StopError());
+    .then(passed => {
+      if (passed) return fn();
+      else throw new StopError();
+    });
   return promise.then(() => recurWhilst(promise, test, fn));
 }
 
@@ -370,7 +368,7 @@ function whilst(test, fn) {
 
 function doWhilst(fn, test) {
   let promise = this.then(() => fn());
-  return whilst.call(this, test, fn);
+  return whilst.call(promise, test, fn);
 }
 
 let methods = {
@@ -400,7 +398,8 @@ let methods = {
   series: series,
   parallel: parallel,
   parallelLimit: parallelLimit,
-  whilst: whilst
+  whilst: whilst,
+  doWhilst: doWhilst
 };
 
 Object.keys(methods).forEach(name => {

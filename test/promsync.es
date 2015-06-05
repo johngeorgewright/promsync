@@ -536,7 +536,7 @@ describe('Promsync', () => {
           .then(() => second.should.have.been.calledOnce);
       });
 
-      it('will call each task in series', () => {
+      it('will call each task in parallel', () => {
         return promise.then(() => first.should.have.been.calledBefore(second));
       });
 
@@ -546,7 +546,7 @@ describe('Promsync', () => {
 
       it('can return key/value pairs', () => {
         return Promsync
-          .series({
+          .parallel({
             foo: first,
             bar: second
           })
@@ -554,6 +554,89 @@ describe('Promsync', () => {
             foo: 1,
             bar: 2
           });
+      });
+    });
+
+    describe('parallelLimit()', () => {
+      let first, second, third, promise;
+
+      beforeEach(() => {
+        let methods = {
+          first: function () {},
+          second: function () {},
+          third: function () {}
+        };
+        sinon.stub(methods);
+        first = methods.first.returns(1);
+        second = methods.second.returns(2);
+        third = methods.third.returns(3);
+        promise = Promsync.parallelLimit([
+          resolve(second, 10),
+          resolve(first, 5),
+          resolve(third)
+        ], 2);
+      });
+
+      it('will call every task', () => {
+        return promise
+          .then(() => first.should.have.been.calledOnce)
+          .then(() => second.should.have.been.calledOnce)
+          .then(() => third.should.have.been.calledOnce);
+      });
+
+      it('will call the methods in parallel chunks', () => {
+        return promise
+          .then(() => third.should.have.been.calledAfter(first))
+          .then(() => third.should.have.been.calledAfter(second))
+          .then(() => first.should.have.been.calledBefore(second));
+      });
+
+      it('will return the results in the correct order', () => {
+        return promise.should.eventually.eql([2, 1, 3]);
+      });
+
+      it('can return key/value pairs', () => {
+        return Promsync
+          .parallelLimit({
+            foo: first,
+            bar: second,
+            lorem: third
+          }, 2)
+          .should.eventually.eql({
+            foo: 1,
+            bar: 2,
+            lorem: 3
+          });
+      });
+    });
+
+    describe('.whilst()', () => {
+      it('will call a function until told otherwise', () => {
+        let called = 0;
+        return Promsync.whilst(
+          () => resolve(called < 100),
+          () => resolve(called++)
+        )
+          .then(() => called.should.equal(100));
+      });
+    });
+
+    describe('.doWhilst()', () => {
+      it('will call a function until told otherwise', () => {
+        let called = 0;
+        return Promsync.doWhilst(
+          () => resolve(called++),
+          () => resolve(called < 100)
+        )
+          .then(() => called.should.equal(100));
+      });
+
+      it('always calls the fn first', () => {
+        let test = sinon.stub().returns(false);
+        let fn = sinon.spy();
+        return Promsync
+          .doWhilst(fn, test)
+          .then(() => fn.should.have.been.calledBefore(test));
       });
     });
 
