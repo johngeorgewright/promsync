@@ -169,15 +169,21 @@ function filterSeries(arr, iterator) {
 }
 
 function reduce(arr, memo, iterator) {
-  return Promsync
-    .all(arr)
-    .then(values => values.reduce(iterator, memo));
+  return this
+    .then(() => Promsync.all([
+      memo,
+      Promsync.all(arr)
+    ]))
+    .then(([origin, values]) => values.reduce(iterator, origin));
 }
 
 function reduceRight(arr, memo, iterator) {
-  return Promsync
-    .all(arr)
-    .then(values => values.reduceRight(iterator, memo));
+  return this
+    .then(() => Promsync.all([
+      memo,
+      Promsync.all(arr)
+    ]))
+    .then(([origin, values]) => values.reduceRight(iterator, origin));
 }
 
 function detect(arr, iterator) {
@@ -185,10 +191,14 @@ function detect(arr, iterator) {
     let resolved = false;
     let promises = arr.map((item, i) => this
       .then(() => item)
-      .then(value => iterator(value, i))
-      .then(value => {
-        if (!resolved && value) resolve(value);
-      }));
+      .then(value => Promsync.all([
+        value,
+        iterator(value, i)
+      ]))
+      .then(([value, detected]) => {
+        if (!resolved && detected) resolve(value);
+      })
+    );
     Promsync
       .all(promises)
       .then(() => {
@@ -198,18 +208,25 @@ function detect(arr, iterator) {
   });
 }
 
-function detectSeries(arr, iterator) {
+function detectSeries(arr, iterator=identity) {
   return new Promsync((resolve, reject) => {
-    let promise = this;
-    arr.forEach((item, i) => {
-      promise = promise
-        .then(() => item)
-        .then(value => iterator(value, i))
-        .then(value => {
-          if (value) resolve(value);
-        });
-    });
-    promise.catch(reject);
+    let resolved = false;
+    arr
+      .reduce((promise, item, i) => {
+        return promise
+          .then(() => item)
+          .then(value => Promsync.all([
+            value,
+            iterator(value, i)
+          ]))
+          .then(([value, passed]) => {
+            if (!resolved && passed) resolve(value);
+          });
+      }, this)
+      .then(() => {
+        if (!resolved) resolve();
+      })
+      .catch(reject);
   });
 }
 
@@ -236,23 +253,28 @@ function every(arr, iterator) {
 
 function seriesArray(promise, tasks) {
   let result = [];
-  tasks.forEach(task => {
-    promise = promise
-      .then(task)
-      .then(value => result.push(value));
-  });
-  return promise.then(() => result);
+  return tasks
+    .reduce((p, item) => {
+      return p
+        .then(() => item)
+        .then(task => task())
+        .then(value => result.push(value));
+    }, promise)
+    .then(() => result);
 }
 
 function seriesObj(promise, tasks) {
   let result = {};
-  let promises = [];
-  Object.keys(tasks).forEach(key => {
-    let task = tasks[key];
-    result[key] = promise = promise.then(() => task());
-    promises.push(promise);
-  });
-  return Promsync.all(promises).then(() => result);
+  return Object
+    .keys(tasks)
+    .reduce((p, key) => {
+      let item = tasks[key];
+      return p
+        .then(() => item)
+        .then(task => task())
+        .then(value => result[key] = value);
+    }, promise)
+    .then(() => result);
 }
 
 function series(tasks) {
@@ -261,8 +283,11 @@ function series(tasks) {
     : seriesObj(this, tasks);
 }
 
-function parallelArray(tasks) {
-  return Promsync.all(tasks.map(task => task()));
+function parallelArray(promise, tasks) {
+  return Promsync.all(tasks.map(item => promise
+      .then(() => item)
+      .then(task => task())
+  ));
 }
 
 function parallelObj(promise, tasks) {
@@ -279,7 +304,7 @@ function parallelObj(promise, tasks) {
 
 function parallel(tasks) {
   return Array.isArray(tasks)
-    ? parallelArray(tasks)
+    ? parallelArray(this, tasks)
     : parallelObj(this, tasks);
 }
 
@@ -381,7 +406,7 @@ let methods = {
 Object.keys(methods).forEach(name => {
   let fn = methods[name];
   Promsync[name] = fn.bind(Promsync.resolve(null));
-  Promsync.prototype[name] = function (...args) {
-    return fn.apply(this, args);
+  Promsync.prototype[name] = function (...yargs) {
+    return this.then((...xargs) => fn.call(this, ...xargs, ...yargs));
   };
 });

@@ -18,24 +18,19 @@ function resolve(value, timeout=0) {
 
 describe('Promsync', () => {
 
-  describe('collections', () => {
-    let promise;
-
-    beforeEach(() => {
-      promise = resolve();
-    });
+  describe('Collections', () => {
 
     describe('.each()', () => {
       it('will call the iterator for each value', () => {
         let results = [];
-        return promise
-          .each(['foo', 'bar'], (v, i) => results.push(v + i))
+        return resolve(['foo', 'bar'])
+          .each((v, i) => results.push(v + i))
           .then(() => results).should.eventually.eql(['foo0', 'bar1']);
       });
 
       it('will resolve the original value', () => {
-        return promise
-          .each(['foo', 'bar'], (v, i) => v + i)
+        return resolve(['foo', 'bar'])
+          .each((v, i) => v + i)
           .should.eventually.eql(['foo', 'bar']);
       });
 
@@ -65,14 +60,14 @@ describe('Promsync', () => {
     describe('.eachSeries()', () => {
       it('will call the iterator for each value', () => {
         let result = [];
-        return promise
-          .eachSeries(['foo', 'bar'], (value, i) => result.push(value + i))
+        return resolve(['foo', 'bar'])
+          .eachSeries((value, i) => result.push(value + i))
           .then(() => result).should.eventually.eql(['foo0', 'bar1']);
       });
 
       it('will resolve the original value', () => {
-        return promise
-          .eachSeries(['foo', 'bar'], (value, i) => value + i)
+        return resolve(['foo', 'bar'])
+          .eachSeries((value, i) => value + i)
           .should.eventually.eql(['foo', 'bar']);
       });
 
@@ -81,8 +76,8 @@ describe('Promsync', () => {
           resolve(1, 10),
           resolve(2)
         ];
-        return promise
-          .eachSeries(arr)
+        return resolve(arr)
+          .eachSeries()
           .should.eventually.eql([1, 2]);
       });
 
@@ -93,8 +88,8 @@ describe('Promsync', () => {
           resolve(first, 10),
           resolve(second)
         ];
-        return promise
-          .eachSeries(arr, spy => spy())
+        return resolve(arr)
+          .eachSeries(spy => spy())
           .then(() => first.should.have.been.calledBefore(second));
       });
 
@@ -112,14 +107,14 @@ describe('Promsync', () => {
     describe('.eachLimit()', () => {
       it('will call each iterator', () => {
         let result = [];
-        return promise
-          .eachLimit(['foo', 'bar'], 1, (v, i) => result.push(v + i))
+        return resolve(['foo', 'bar'])
+          .eachLimit(1, (v, i) => result.push(v + i))
           .then(() => result).should.eventually.eql(['foo0', 'bar1']);
       });
 
       it('will resolve the original results', () => {
-        return promise
-          .eachLimit(['foo', 'bar'], 1, (v, i) => v + i)
+        return resolve(['foo', 'bar'])
+          .eachLimit(1, (v, i) => v + i)
           .should.eventually.eql(['foo', 'bar']);
       });
 
@@ -137,14 +132,14 @@ describe('Promsync', () => {
 
     describe('.map()', () => {
       it('will call each iterator resolving new values', () => {
-        return promise
-          .map(['foo', 'bar'], (v, i) => v + i)
+        return resolve(['foo', 'bar'])
+          .map((v, i) => v + i)
           .should.eventually.eql(['foo0', 'bar1']);
       });
 
       it('can be used as a class method', () => {
-        return Promsync
-          .map(['foo', 'bar'], (v, i) => v + (i + 1))
+        return resolve(['foo', 'bar'])
+          .map((v, i) => v + (i + 1))
           .should.eventually.eql(['foo1', 'bar2']);
       });
 
@@ -153,8 +148,8 @@ describe('Promsync', () => {
           resolve(1, 10),
           resolve(2)
         ];
-        return promise
-          .map(arr)
+        return resolve(arr)
+          .map()
           .should.eventually.eql([1, 2]);
       });
 
@@ -165,16 +160,16 @@ describe('Promsync', () => {
           resolve(second, 10),
           resolve(first, 0)
         ];
-        return promise
-          .map(arr, spy => spy())
+        return resolve(arr)
+          .map(spy => spy())
           .then(() => first.should.have.been.calledBefore(second));
       });
     });
 
     describe('.mapSeries()', () => {
       it('will call each iterator resolving new values', () => {
-        return promise
-          .mapSeries(['foo', 'bar'], (v, i) => v + (i + 1))
+        return resolve(['foo', 'bar'])
+          .mapSeries((v, i) => v + (i + 1))
           .should.eventually.eql(['foo1', 'bar2']);
       });
 
@@ -183,8 +178,8 @@ describe('Promsync', () => {
           resolve(1, 10),
           resolve(2)
         ];
-        return promise
-          .mapSeries(arr)
+        return resolve(arr)
+          .mapSeries()
           .should.eventually.eql([1, 2]);
       });
 
@@ -195,8 +190,8 @@ describe('Promsync', () => {
           resolve(first, 10),
           resolve(second)
         ];
-        return promise
-          .mapSeries(arr, spy => spy())
+        return resolve(arr)
+          .mapSeries(spy => spy())
           .then(() => first.should.have.been.calledBefore(second));
       });
     });
@@ -204,15 +199,15 @@ describe('Promsync', () => {
     describe('.forEachOf()', () => {
       it('will call the iterator for each value', () => {
         let result = {};
-        return promise
-          .forEachOf({foo: 'bar', lorem: 'ipsum'}, (v, k) => result[v] = k)
+        return resolve({foo: 'bar', lorem: 'ipsum'})
+          .forEachOf((v, k) => result[v] = k)
           .then(() => result)
           .should.eventually.eql({bar: 'foo', ipsum: 'lorem'});
       });
 
       it('will always resolve the original values', () => {
-        return promise
-          .forEachOf({foo: 'bar', lorem: 'ipsum'}, (v, k) => v + k)
+        return resolve({foo: 'bar', lorem: 'ipsum'})
+          .forEachOf((v, k) => v + k)
           .should.eventually.eql({foo: 'bar', lorem: 'ipsum'});
       });
 
@@ -223,8 +218,8 @@ describe('Promsync', () => {
           second: resolve(second, 10),
           first: resolve(first)
         };
-        return promise
-          .forEachOf(obj, spy => spy())
+        return resolve(obj)
+          .forEachOf(spy => spy())
           .then(() => first.should.have.been.calledBefore(second));
       });
     });
@@ -232,15 +227,15 @@ describe('Promsync', () => {
     describe('.forEachOfSeries()', () => {
       it('will call the iterator for each value', () => {
         let result = {};
-        return promise
-          .forEachOfSeries({foo: 'bar', lorem: 'ipsum'}, (v, k) => result[v] = k)
+        return resolve({foo: 'bar', lorem: 'ipsum'})
+          .forEachOfSeries((v, k) => result[v] = k)
           .then(() => result)
           .should.eventually.eql({bar: 'foo', ipsum: 'lorem'});
       });
 
       it('will always resolve the original values', () => {
-        return promise
-          .forEachOfSeries({foo: 'bar', lorem: 'ipsum'}, (v, k) => v + k)
+        return resolve({foo: 'bar', lorem: 'ipsum'})
+          .forEachOfSeries((v, k) => v + k)
           .should.eventually.eql({foo: 'bar', lorem: 'ipsum'});
       });
 
@@ -251,8 +246,8 @@ describe('Promsync', () => {
           first: resolve(first, 10),
           second: resolve(second)
         };
-        return promise
-          .forEachOfSeries(obj, spy => spy())
+        return resolve(obj)
+          .forEachOfSeries(spy => spy())
           .then(() => first.should.have.been.calledBefore(second));
       });
     });
@@ -260,14 +255,14 @@ describe('Promsync', () => {
     describe('.forEachOfLimit()', () => {
       it('will call the iterator for each value', () => {
         let result = [];
-        return promise
-          .forEachOfLimit({foo: 'bar', lorem: 'ipsum'}, 1, (v, k) => result.push(v + k))
+        return resolve({foo: 'bar', lorem: 'ipsum'})
+          .forEachOfLimit(1, (v, k) => result.push(v + k))
           .then(() => result).should.eventually.eql(['barfoo', 'ipsumlorem']);
       });
 
       it('will resolve the original results', () => {
-        return promise
-          .forEachOfLimit({foo: 'bar', lorem: 'ipsum'}, 1, (v, k) => k + v)
+        return resolve({foo: 'bar', lorem: 'ipsum'})
+          .forEachOfLimit(1, (v, k) => k + v)
           .should.eventually.eql({foo: 'bar', lorem: 'ipsum'});
       });
 
@@ -292,21 +287,273 @@ describe('Promsync', () => {
 
     describe('.filter()', () => {
       it('will use the method to filter out unwanted values', () => {
-        return promise
-          .filter([3, 4, 5, 6], v => v > 4)
+        return resolve([3, 4, 5, 6])
+          .filter(v => v > 4)
           .should.eventually.eql([5, 6]);
       });
 
       it('will call the iterator in parallel', () => {
-        let first = sinon.spy(function first() {});
-        let second = sinon.spy(function second() {});
+        let first = sinon.spy();
+        let second = sinon.spy();
         let arr = [
           resolve(second, 20),
           resolve(first)
         ];
-        return promise
-          .filter(arr, spy => spy())
+        return resolve(arr)
+          .filter(spy => spy())
           .then(() => first.should.have.been.calledBefore(second));
+      });
+    });
+
+    describe('.filterSeries()', () => {
+      it('will use the method to filter out unwanted values', () => {
+        return resolve([3, 4, 5, 6])
+          .filterSeries(v => v > 4)
+          .should.eventually.eql([5, 6]);
+      });
+
+      it('will call the iterator in series', () => {
+        let first = sinon.spy(function first() {});
+        let second = sinon.spy(function second() {});
+        let arr = [
+          resolve(first, 20),
+          resolve(second)
+        ];
+        return resolve(arr)
+          .filterSeries(spy => spy())
+          .then(() => first.should.have.been.calledBefore(second));
+      });
+    });
+
+    describe('.reduce()', () => {
+      it('will use the method to reduce to a single value', () => {
+        return resolve([1, 2, 3, 4])
+          .reduce(0, (prev, curr) => prev + curr)
+          .should.eventually.equal(10);
+      });
+
+      it('can handle promises', () => {
+        let arr = [
+          resolve(1), resolve(2), resolve(3), resolve(4)
+        ];
+        return resolve(arr)
+          .reduce(resolve(0), (prev, curr) => prev + curr)
+          .should.eventually.equal(10);
+      });
+    });
+
+    describe('.reduceRight()', () => {
+      it('will reduce the array to a single value', () => {
+        return resolve(['foo', 'bar'])
+          .reduceRight('', (prev, curr) => prev + curr)
+          .should.eventually.equal('barfoo');
+      });
+
+      it('can handle promises', () => {
+        let arr = [
+          resolve('foo', 10), resolve('bar')
+        ];
+        return resolve(arr)
+          .reduceRight(resolve(''), (prev, curr) => prev + curr)
+          .should.eventually.equal('barfoo');
+      });
+    });
+
+    describe('.detect()', () => {
+      it('will detect the first truthy value', () => {
+        return resolve([1, 2, 3])
+          .detect(v => v > 1)
+          .should.eventually.equal(2);
+      });
+
+      it('will resolve in parallel', () => {
+        let first = sinon.stub().returns(false);
+        let second = sinon.stub().returns(false);
+        return resolve([
+          resolve(second, 10),
+          resolve(first)
+        ])
+          .detect(spy => spy())
+          .then(() => first.should.have.been.calledBefore(second));
+      });
+
+      it('will return undefined if nothing\'s found', () => {
+        return resolve([1, 2, 3])
+          .detect(v => v > 3)
+          .should.eventually.be.undefined;
+      });
+    });
+
+    describe('.detectSeries()', () => {
+      it('will detect the first truthy value', () => {
+        return resolve([1, 2, 3])
+          .detectSeries(v => v > 1)
+          .should.eventually.equal(2);
+      });
+
+      it('will resolve in series', () => {
+        let first = sinon.stub().returns(false);
+        let second = sinon.stub().returns(false);
+        return resolve([
+          resolve(first, 10),
+          resolve(second)
+        ])
+          .detectSeries(spy => spy())
+          .then(() => first.should.have.been.calledBefore(second));
+      });
+
+      it('will return undefined if nothing\'s found', () => {
+        return resolve([1, 2, 3])
+          .detectSeries(v => v > 3)
+          .should.eventually.be.undefined;
+      });
+    });
+
+    describe('.sortBy()', () => {
+      it('sorts an array of values', () => {
+        resolve([
+          resolve(10),
+          resolve(4),
+          8, 3
+        ])
+          .sortBy().should.eventually.eql([3, 4, 8, 10]);
+      });
+
+      it('can use a custom compare function', () => {
+        resolve([
+          {foo: 4},
+          {foo: 3}
+        ])
+          .sortBy((a, b) => {
+            if (a.foo === b.foo) return 0;
+            return a.foo < b.foo ? -1 : 1;
+          })
+          .should.eventually.eql([
+            {foo: 3},
+            {foo: 4}
+          ]);
+      });
+    });
+
+    describe('.some()', () => {
+      it('will resolve true if any values are truthy', () => {
+        return resolve([
+          resolve('mung'),
+          'face'
+        ])
+          .some(v => v === 'mung')
+          .should.eventually.be.true;
+      });
+
+      it('will resolve false if no values are truthy', () => {
+        return resolve([
+          resolve('mung'),
+          'face'
+        ])
+          .some(v => v === 'foo')
+          .should.eventually.be.false;
+      });
+    });
+
+    describe('.every()', () => {
+      it('will resolve true if all values are truthy', () => {
+        return resolve([
+          resolve('mung'),
+          'face'
+        ])
+          .every(v => v.length === 4)
+          .should.eventually.be.true;
+      });
+
+      it('will resolve false if all values are not truthy', () => {
+        return resolve([
+          resolve('foo'),
+          'face'
+        ])
+          .every(v => v.length === 4)
+          .should.eventually.be.false;
+      });
+    });
+
+  });
+
+  describe('Control Flow', () => {
+
+    describe('.series()', () => {
+      let first, second, promise;
+
+      beforeEach(() => {
+        first = sinon.stub().returns(1);
+        second = sinon.stub().returns(2);
+        promise = Promsync.series([
+          resolve(first, 10),
+          resolve(second)
+        ]);
+      });
+
+      it('will call every task', () => {
+        return promise
+          .then(() => first.should.have.been.calledOnce)
+          .then(() => second.should.have.been.calledOnce);
+      });
+
+      it('will call each task in series', () => {
+        return promise.then(() => first.should.have.been.calledBefore(second));
+      });
+
+      it('will return the results in the correct order', () => {
+        return promise.should.eventually.eql([1, 2]);
+      });
+
+      it('can return key/value pairs', () => {
+        return Promsync
+          .series({
+            foo: first,
+            bar: second
+          })
+          .should.eventually.eql({
+            foo: 1,
+            bar: 2
+          });
+      });
+    });
+
+    describe('.parallel()', () => {
+      let first, second, promise;
+
+      beforeEach(() => {
+        first = sinon.stub().returns(1);
+        second = sinon.stub().returns(2);
+        promise = Promsync.parallel([
+          resolve(second, 10),
+          resolve(first)
+        ]);
+      });
+
+      it('will call every task', () => {
+        return promise
+          .then(() => first.should.have.been.calledOnce)
+          .then(() => second.should.have.been.calledOnce);
+      });
+
+      it('will call each task in series', () => {
+        return promise.then(() => first.should.have.been.calledBefore(second));
+      });
+
+      it('will return the results in the correct order', () => {
+        return promise.should.eventually.eql([2, 1]);
+      });
+
+      it('can return key/value pairs', () => {
+        return Promsync
+          .series({
+            foo: first,
+            bar: second
+          })
+          .should.eventually.eql({
+            foo: 1,
+            bar: 2
+          });
       });
     });
 
