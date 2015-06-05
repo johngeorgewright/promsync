@@ -2,11 +2,11 @@ class StopError extends Error {}
 
 export default class Promsync extends Promise {}
 
-function resolve(it) {
+function identity(it) {
   return it;
 }
 
-function each(arr, iterator=resolve) {
+function each(arr, iterator=identity) {
   let promise = this;
   let result = [];
   let promises = arr.map((item, i) => {
@@ -20,7 +20,7 @@ function each(arr, iterator=resolve) {
   return Promsync.all(promises).then(() => result);
 }
 
-function eachSeries(arr, iterator=resolve) {
+function eachSeries(arr, iterator=identity) {
   let result = [];
   return arr
     .reduce((promise, item, i) => {
@@ -28,13 +28,13 @@ function eachSeries(arr, iterator=resolve) {
         .then(() => item)
         .then(value => {
           result.push(value);
-          return iterator(item, i);
+          return iterator(value, i);
         });
     }, this)
     .then(() => result);
 }
 
-function eachLimit(arr, limit, iterator=resolve) {
+function eachLimit(arr, limit, iterator=identity) {
   let promise = this;
   let length = arr.length;
   let result = [];
@@ -64,7 +64,7 @@ function eachLimit(arr, limit, iterator=resolve) {
   return promise.then(() => result);
 }
 
-function map(arr, iterator=resolve) {
+function map(arr, iterator=identity) {
   let promises = arr.map((item, i) => {
     return this
       .then(() => item)
@@ -73,47 +73,69 @@ function map(arr, iterator=resolve) {
   return Promsync.all(promises);
 }
 
-function mapSeries(arr, iterator) {
+function mapSeries(arr, iterator=identity) {
   let promise = this;
   let length = arr.length;
   let results = [];
   arr.forEach((item, i) => {
     promise = promise
-      .then(() => promise)
-      .then(value => iterator(value, i))
-      .then(value => results.push(value));
+    .then(() => item)
+    .then(value => iterator(value, i))
+    .then(value => results.push(value));
   });
   return promise.then(() => results);
 }
 
-function forEachOf(obj, iterator) {
-  let promises = Object.keys(obj).map(function (key) {
-    return iterator(obj[key], key);
+function forEachOf(obj, iterator=identity) {
+  let result = {};
+  let promises = Object.keys(obj).map(key => {
+    return this
+      .then(() => obj[key])
+      .then(value => {
+        result[key] = value;
+        return iterator(value, key);
+      });
   });
-  return Promsync.all(promises);
+  return Promsync.all(promises).then(() => result);
 }
 
-function forEachOfSeries(obj, iterator) {
-  let promise = this;
-  Object.keys(obj).forEach(key => {
-    promise = promise.then(() => iterator(obj[key], key));
-  });
-  return promise;
+function forEachOfSeries(obj, iterator=identity) {
+  let result = {};
+  let promise = Object.keys(obj).reduce((p, key) => {
+    return p
+      .then(() => obj[key])
+      .then(value => {
+        result[key] = value;
+        return iterator(value, key);
+      });
+  }, this);
+  return promise.then(() => result);
 }
 
-function forEachOfLimit(obj, limit, iterator) {
+function forEachOfLimit(obj, limit, iterator=identity) {
+  let result = {};
+  let assign = chunk => Object.assign(result, chunk);
   let keys = Object.keys(obj);
-  let length = keys.length;
   let promise = this;
-  function iterate(key) {
-    return iterator(obj[key], key);
-  }
-  for (let i = 0; i < length; i += limit) {
+  let chunkPromise = (i) => {
+    let chunkResult = {};
     let chunk = keys.slice(i, i + limit);
-    let promises = chunk.map(iterate);
-    promise = promise.then(Promsync.all(promises));
+    let promises = chunk.map(key => promise
+      .then(() => obj[key])
+      .then(value => {
+        result[key] = value;
+        return iterator(value, key);
+      })
+    );
+    return promise.then(() => Promsync
+      .all(promises)
+      .then(() => chunkResult)
+    );
+  };
+  for (let i = 0; i < keys.length; i += limit) {
+    promise = chunkPromise(i).then(assign);
   }
-  return promise;
+  return promise.then(() => result);
 }
 
 function filter(arr, iterator) {
