@@ -138,28 +138,34 @@ function forEachOfLimit(obj, limit, iterator=identity) {
   return promise.then(() => result);
 }
 
-function filter(arr, iterator) {
-  return Promsync
-    .all(arr)
-    .then(values => Promsync.all(values.filter(iterator)));
+function filterItem(promise, arr, item, i, check) {
+  let currentValue;
+  return promise
+    .then(() => item)
+    .then(value => {
+      currentValue = value;
+      return check(value, i);
+    })
+    .then(filtered => {
+      if (filtered) arr.push(currentValue);
+    });
+}
+
+function filter(arr, iterator=identity) {
+  let result = [];
+  let promises = arr.map((item, i) => {
+    return filterItem(this, result, item, i, iterator);
+  });
+  return Promsync.all(promises).then(() => result);
 }
 
 function filterSeries(arr, iterator) {
-  let promise = this;
   let results = [];
-  arr.forEach((item, i) => {
-    let currentValue;
-    promise = promise
-      .then(() => item)
-      .then(value => {
-        currentValue = value;
-        return iterator(value, i);
-      })
-      .then(filtered => {
-        if (filtered) results.push(currentValue);
-      });
-  });
-  return promise.then(() => results);
+  return arr
+    .reduce((promise, item, i) => {
+      return filterItem(promise, results, item, i, iterator);
+    }, this)
+    .then(() => results);
 }
 
 function reduce(arr, memo, iterator) {

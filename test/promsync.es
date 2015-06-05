@@ -290,6 +290,26 @@ describe('Promsync', () => {
       });
     });
 
+    describe('.filter()', () => {
+      it('will use the method to filter out unwanted values', () => {
+        return promise
+          .filter([3, 4, 5, 6], v => v > 4)
+          .should.eventually.eql([5, 6]);
+      });
+
+      it('will call the iterator in parallel', () => {
+        let first = sinon.spy(function first() {});
+        let second = sinon.spy(function second() {});
+        let arr = [
+          resolve(second, 20),
+          resolve(first)
+        ];
+        return promise
+          .filter(arr, spy => spy())
+          .then(() => first.should.have.been.calledBefore(second));
+      });
+    });
+
   });
 
 });
