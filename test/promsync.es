@@ -611,24 +611,36 @@ describe('Promsync', () => {
     });
 
     describe('.whilst()', () => {
-      it('will call a function until told otherwise', () => {
+      it('will call a function while a test passes', () => {
         let called = 0;
-        return Promsync.whilst(
-          () => resolve(called < 100),
-          () => resolve(called++)
-        )
-          .then(() => called.should.equal(100));
+        return Promsync
+          .whilst(
+            () => resolve(called < 10),
+            () => resolve(called++)
+          )
+          .then(() => called.should.equal(10));
+      });
+
+      it('won\'t do anything if the condition starts as false', () => {
+        let called = 0;
+        return Promsync
+          .whilst(
+            () => false,
+            () => called++
+          )
+          .then(() => called.should.equal(0));
       });
     });
 
     describe('.doWhilst()', () => {
-      it('will call a function until told otherwise', () => {
+      it('will call a function whilst a test passes', () => {
         let called = 0;
-        return Promsync.doWhilst(
-          () => resolve(called++),
-          () => resolve(called < 100)
-        )
-          .then(() => called.should.equal(100));
+        return Promsync
+          .doWhilst(
+            () => resolve(called++),
+            () => resolve(called < 10)
+          )
+          .then(() => called.should.equal(10));
       });
 
       it('always calls the fn first', () => {
@@ -637,6 +649,107 @@ describe('Promsync', () => {
         return Promsync
           .doWhilst(fn, test)
           .then(() => fn.should.have.been.calledBefore(test));
+      });
+    });
+
+    describe('.until()', () => {
+      it('will call a function until a test passes', () => {
+        let called = 0;
+        return Promsync
+          .until(
+            () => resolve(called > 10),
+            () => resolve(called++)
+          )
+          .then(() => called.should.equal(11));
+      });
+
+      it('won\'t do anything if the condition starts as true', () => {
+        let called = 0;
+        return Promsync
+          .until(
+            () => true,
+            () => called++
+          )
+          .then(() => called.should.equal(0));
+      });
+    });
+
+    describe('.doUntil()', () => {
+      it('will call a function until a test passes', () => {
+        let called = 0;
+        return Promsync
+          .doUntil(
+            () => resolve(called++),
+            () => resolve(called > 10)
+          )
+          .then(() => called.should.equal(11));
+      });
+
+      it('always calls the fn first', () => {
+        let test = sinon.stub().returns(true);
+        let fn = sinon.spy();
+        return Promsync
+          .doUntil(fn, test)
+          .then(() => fn.should.have.been.calledBefore(test));
+      });
+    });
+
+    describe('forever()', () => {
+      it('will call a function only until an error is thrown', () => {
+        let called = 0;
+        return Promsync
+          .forever(() => {
+            if (called > 10) {
+              throw new Error();
+            } else {
+              return resolve(called++);
+            }
+          })
+          .catch(() => called.should.equal(11));
+      });
+    });
+
+    describe('compose()', () => {
+      it('returns a function', () => {
+        Promsync.compose().should.be.a('function');
+      });
+
+      it('calls all the methods in reverse', () => {
+        let one = sinon.spy();
+        let two = sinon.spy();
+        return Promsync
+          .compose(two, one)()
+          .then(() => one.should.have.been.calledBefore(two));
+      });
+
+      it('manipulates a value in each function', () => {
+        let mul3 = it => it * 3;
+        let add1 = it => it + 1;
+        Promsync
+          .compose(add1, mul3)(4)
+          .should.eventually.equal(15);
+      });
+    });
+
+    describe('seq()', () => {
+      it('returns a function', () => {
+        Promsync.seq().should.be.a('function');
+      });
+
+      it('calls all the methods in order', () => {
+        let one = sinon.spy();
+        let two = sinon.spy();
+        return Promsync
+          .seq(one, two)()
+          .then(() => one.should.have.been.calledBefore(two));
+      });
+
+      it('manipulates a value in each function', () => {
+        let mul3 = it => it * 3;
+        let add1 = it => it + 1;
+        resolve(mul3)
+          .compose(add1)(4)
+          .should.eventually.equal(15);
       });
     });
 

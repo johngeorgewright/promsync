@@ -1,4 +1,4 @@
-class StopError extends Error {}
+class BreakRecursion extends Error {}
 
 export default class Promsync extends Promise {}
 
@@ -351,7 +351,7 @@ function recurWhilst(promise, test, fn) {
     .then(() => test())
     .then(passed => {
       if (passed) return fn();
-      else throw new StopError();
+      else throw new BreakRecursion();
     });
   return promise.then(() => recurWhilst(promise, test, fn));
 }
@@ -360,8 +360,8 @@ function whilst(test, fn) {
   return this
     .then(() => recurWhilst(this, test, fn))
     .catch(err => {
-      if (!(err instanceof StopError)) {
-        return err;
+      if (!(err instanceof BreakRecursion)) {
+        throw err;
       }
     });
 }
@@ -369,6 +369,38 @@ function whilst(test, fn) {
 function doWhilst(fn, test) {
   let promise = this.then(() => fn());
   return whilst.call(promise, test, fn);
+}
+
+function until(test, fn) {
+  let negTest = () => {
+    return this.then(() => test()).then(passed => !passed);
+  };
+  return whilst.call(this, negTest, fn);
+}
+
+function doUntil(fn, test) {
+  let promise = this.then(() => fn());
+  return until.call(promise, test, fn);
+}
+
+function forever(fn) {
+  return this.then(() => recurWhilst(this, () => true, fn));
+}
+
+function seq(...fns) {
+  let promise = this;
+  return value => {
+    fns.forEach(fn => {
+      promise = promise.then(value => fn(value));
+    });
+    return promise;
+  };
+}
+
+function compose(...fns) {
+  fns = fns.slice();
+  fns.reverse();
+  return seq.apply(this, fns);
 }
 
 let methods = {
@@ -399,7 +431,12 @@ let methods = {
   parallel: parallel,
   parallelLimit: parallelLimit,
   whilst: whilst,
-  doWhilst: doWhilst
+  doWhilst: doWhilst,
+  until: until,
+  doUntil: doUntil,
+  forever: forever,
+  compose: compose,
+  seq: seq
 };
 
 Object.keys(methods).forEach(name => {
