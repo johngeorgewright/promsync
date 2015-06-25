@@ -509,7 +509,7 @@ methods.queue = function (worker, concurrency=1) {
 
 Object.keys(methods).forEach(name => {
   let fn = methods[name];
-  Promsync[name] = fn.bind(Promsync.resolve(null));
+  Promsync[name] = fn.bind(Promsync.resolve());
   Promsync.prototype[name] = function (...yargs) {
     return this.then((...xargs) => fn.call(this, ...xargs, ...yargs));
   };
