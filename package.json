@@ -4,14 +4,15 @@
   "description": "Async.js style utility belt for the promise pattern",
   "main": "promsync.js",
   "scripts": {
-    "compile": "babel -o promsync.js promsync.es",
     "add-git-hooks": "npm run remove-git-hooks && ln -s ../../git_hooks/pre-commit.sh .git/hooks/pre-commit",
-    "remove-git-hooks": "rm .git/hooks/pre-commit",
+    "compile": "babel -o promsync.js promsync.es",
     "link-jspm": "nodemon -x \"npm run compile && jspm link npm:promsync -y\" -e es",
     "minify": "ccjs promsync.js > promsync.min.js",
     "prepublish": "npm test && npm run compile && npm run minify",
+    "remove-git-hooks": "rm .git/hooks/pre-commit",
     "test": "mocha --check-leaks --compilers es:babel/register --reporter nyan",
-    "test-watch": "npm test -- --watch --growl"
+    "test-watch": "npm test -- --watch --growl",
+    "watch": "nodemon -x \"npm run prepublish && jspm link npm:promsync -y\" -e es"
   },
   "repository": {
     "type": "git",
