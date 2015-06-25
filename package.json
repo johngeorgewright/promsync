@@ -7,8 +7,8 @@
     "build": "babel -o promsync.js promsync.es",
     "link-jspm": "nodemon -x \"npm run build && jspm link npm:promsync -y\" -e es",
     "prepublish": "npm run build",
-    "test": "mocha --check-leaks --compilers es:babel/register",
-    "test-watch": "mocha --watch --growl --check-leaks --compilers es:babel/register"
+    "test": "mocha --check-leaks --compilers es:babel/register --reporter nyan",
+    "test-watch": "npm test -- --watch --growl"
   },
   "repository": {
     "type": "git",

@@ -1,3 +1,4 @@
+/*eslint no-unused-expressions:0*/
 /*eslint-env node, mocha*/
 
 import Promsync from '../promsync.es';
@@ -725,8 +726,8 @@ describe('Promsync', () => {
       it('manipulates a value in each function', () => {
         let mul3 = it => it * 3;
         let add1 = it => it + 1;
-        Promsync
-          .compose(add1, mul3)(4)
+        return Promsync
+          .compose(mul3, add1)(4)
           .should.eventually.equal(15);
       });
     });
@@ -747,10 +748,197 @@ describe('Promsync', () => {
       it('manipulates a value in each function', () => {
         let mul3 = it => it * 3;
         let add1 = it => it + 1;
-        resolve(mul3)
-          .compose(add1)(4)
+        return Promsync
+          .seq(add1, mul3)(4)
           .should.eventually.equal(15);
       });
+    });
+
+    describe('applyEach()', () => {
+      let first, second, promise;
+
+      beforeEach(() => {
+        first = sinon.spy();
+        second = sinon.spy();
+        promise = Promsync.applyEach([
+          resolve(second, 10),
+          resolve(first)
+        ], 'foo', 'bar');
+      });
+
+      it('will call each function', () => {
+        return promise
+          .then(() => first.should.have.been.calledOnce)
+          .then(() => second.should.have.been.calledOnce);
+      });
+
+      it('will call the tasks in parallel', () => {
+        return promise
+          .then(() => first.should.have.been.calledBefore(second));
+      });
+
+      it('will call the tasks with the given parameters', () => {
+        return promise
+          .then(() => first.should.have.been.calledWith('foo', 'bar'))
+          .then(() => second.should.have.been.calledWith('foo', 'bar'));
+      });
+    });
+
+    describe('applyEachSeries()', () => {
+      let first, second, promise;
+
+      beforeEach(() => {
+        first = sinon.spy();
+        second = sinon.spy();
+        promise = Promsync.applyEachSeries([
+          resolve(first, 10),
+          resolve(second)
+        ], 'foo', 'bar');
+      });
+
+      it('will call each function', () => {
+        return promise
+          .then(() => first.should.have.been.calledOnce)
+          .then(() => second.should.have.been.calledOnce);
+      });
+
+      it('will call the tasks in series', () => {
+        return promise
+          .then(() => first.should.have.been.calledBefore(second));
+      });
+
+      it('will call the tasks with the given parameters', () => {
+        return promise
+          .then(() => first.should.have.been.calledWith('foo', 'bar'))
+          .then(() => second.should.have.been.calledWith('foo', 'bar'));
+      });
+    });
+
+    describe('queue()', () => {
+      let queue, worker;
+
+      beforeEach(() => {
+        worker = sinon.spy();
+        queue = Promsync.queue(worker);
+      });
+
+      it('will return an object', () => {
+        queue.should.be.an('object');
+      });
+
+      describe('.push()', () => {
+        it('will add an item and instantly run the worker against it', () => {
+          return queue
+            .push('mung')
+            .then(() => worker.should.have.been.calledOnce)
+            .then(() => worker.should.have.been.calledWith('mung'));
+        });
+
+        it('can take any number of items and will instantly run them', () => {
+          return queue
+            .push('foo', 'bar')
+            .then(() => worker.should.have.been.calledTwice)
+            .then(() => worker.firstCall.should.have.been.calledWith('foo'))
+            .then(() => worker.secondCall.should.have.been.calledWith('bar'));
+        });
+      });
+
+      describe('.unshift()', () => {
+        it('will add an item to the beginning of the list and instantly run the worker against it', () => {
+          return queue
+            .unshift('bar', 'foo')
+            .then(() => worker.should.have.been.calledTwice)
+            .then(() => worker.firstCall.should.have.been.calledWith('bar'))
+            .then(() => worker.secondCall.should.have.been.calledWith('foo'));
+        });
+      });
+
+      describe('.pause()', () => {
+        it('will stop the queue from processing items', () => {
+          queue.pause();
+          return queue
+            .push('foo')
+            .then(() => worker.should.not.have.been.called);
+        });
+      });
+
+      describe('.length', () => {
+        it('will return the number of items left to process', () => {
+          let items = Array(100);
+          queue.pause();
+          return queue
+            .push(...items)
+            .then(() => queue.length.should.equal(100));
+        });
+
+        it('cannot be set manually', () => {
+          (() => queue.length = 4).should.throw();
+        });
+      });
+
+      describe('.started', () => {
+        it('cannot be set manually', () => {
+          (() => queue.started = true).should.throw();
+        });
+
+        it('will be false before the queue has started', () => {
+          queue.started.should.be.false;
+        });
+
+        it('will be true once it\'s started', () => {
+          return queue
+            .push('foo')
+            .then(() => queue.started.should.be.true);
+        });
+      });
+
+      describe('.running', () => {
+        it('cannot be set manually', () => {
+          (() => queue.running = true).should.throw();
+        });
+
+        it('will be false when the queue isn\'t running', () => {
+          queue.running.should.be.false;
+        });
+
+        it('will be true while the queue is running', () => {
+          let promise = queue.push(Array(1000));
+          queue.running.should.be.true;
+          return promise.then(() => queue.running.should.be.false);
+        });
+      });
+
+      describe('.idle', () => {
+        it('cannot be set manually', () => {
+          (() => queue.running = true).should.throw();
+        });
+
+        it(`will be true while it's not doing anything`, () => {
+          queue.idle.should.be.true;
+        });
+
+        it(`will be false while it's running`, () => {
+          queue.push(resolve('mung', 100));
+          queue.idle.should.be.false;
+        });
+
+        it(`will be true once it's finished`, () => {
+          return queue
+            .push('mung')
+            .then(() => queue.idle.should.be.true);
+        });
+      });
+
+      describe.skip('.concurrency', () => {});
+
+      describe.skip('.saturated', () => {});
+
+      describe.skip('.empty', () => {});
+
+      describe.skip('.drain', () => {});
+
+      describe.skip('.kill()', () => {});
+
     });
 
   });

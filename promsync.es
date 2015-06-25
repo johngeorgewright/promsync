@@ -6,7 +6,9 @@ function identity(it) {
   return it;
 }
 
-function each(arr, iterator=identity) {
+let methods = {};
+
+methods.each = function (arr, iterator=identity) {
   let promise = this;
   let result = [];
   let promises = arr.map((item, i) => {
@@ -18,9 +20,9 @@ function each(arr, iterator=identity) {
       });
   });
   return Promsync.all(promises).then(() => result);
-}
+};
 
-function eachSeries(arr, iterator=identity) {
+methods.eachSeries = function (arr, iterator=identity) {
   let result = [];
   return arr
     .reduce((promise, item, i) => {
@@ -32,14 +34,15 @@ function eachSeries(arr, iterator=identity) {
         });
     }, this)
     .then(() => result);
-}
+};
 
-function eachLimit(arr, limit, iterator=identity) {
-  let promise = this;
+function eachLimit(promise, arr, limit, iterator=identity, onSaturate=identity) {
   let length = arr.length;
   let result = [];
+  let stopped = false;
   function concat(value) {
     result = result.concat(value);
+    onSaturate(value);
   }
   function chunkResolver(index) {
     let chunkPromise = promise;
@@ -57,23 +60,34 @@ function eachLimit(arr, limit, iterator=identity) {
     return () => Promsync.all(promises).then(() => chunkResult);
   }
   for (let i = 0; i < length; i += limit) {
+    if (stopped) break;
     promise = promise
       .then(chunkResolver(i))
       .then(concat);
   }
-  return promise.then(() => result);
+  return {
+    promise: promise.then(() => result),
+    stop: () => {
+      stopped = true;
+      return promise;
+    }
+  };
 }
 
-function map(arr, iterator=identity) {
+methods.eachLimit = function (arr, limit, iterator) {
+  return eachLimit(this, arr, limit, iterator).promise;
+};
+
+methods.map = function (arr, iterator=identity) {
   let promises = arr.map((item, i) => {
     return this
       .then(() => item)
       .then(value => iterator(value, i));
   });
   return Promsync.all(promises);
-}
+};
 
-function mapSeries(arr, iterator=identity) {
+methods.mapSeries = function (arr, iterator=identity) {
   let promise = this;
   let length = arr.length;
   let results = [];
@@ -84,9 +98,9 @@ function mapSeries(arr, iterator=identity) {
     .then(value => results.push(value));
   });
   return promise.then(() => results);
-}
+};
 
-function forEachOf(obj, iterator=identity) {
+methods.forEachOf = function (obj, iterator=identity) {
   let result = {};
   let promises = Object.keys(obj).map(key => {
     return this
@@ -97,9 +111,9 @@ function forEachOf(obj, iterator=identity) {
       });
   });
   return Promsync.all(promises).then(() => result);
-}
+};
 
-function forEachOfSeries(obj, iterator=identity) {
+methods.forEachOfSeries = function (obj, iterator=identity) {
   let result = {};
   let promise = Object.keys(obj).reduce((p, key) => {
     return p
@@ -110,9 +124,9 @@ function forEachOfSeries(obj, iterator=identity) {
       });
   }, this);
   return promise.then(() => result);
-}
+};
 
-function forEachOfLimit(obj, limit, iterator=identity) {
+methods.forEachOfLimit = function (obj, limit, iterator=identity) {
   let result = {};
   let assign = chunk => Object.assign(result, chunk);
   let keys = Object.keys(obj);
@@ -136,7 +150,7 @@ function forEachOfLimit(obj, limit, iterator=identity) {
     promise = chunkPromise(i).then(assign);
   }
   return promise.then(() => result);
-}
+};
 
 function filterItem(promise, arr, item, i, check) {
   let currentValue;
@@ -159,32 +173,34 @@ function filter(arr, iterator=identity) {
   return Promsync.all(promises).then(() => result);
 }
 
-function filterSeries(arr, iterator) {
+methods.filter = filter;
+
+methods.filterSeries = function (arr, iterator) {
   let results = [];
   return arr
     .reduce((promise, item, i) => {
       return filterItem(promise, results, item, i, iterator);
     }, this)
     .then(() => results);
-}
+};
 
-function reduce(arr, memo, iterator) {
+methods.reduce = function (arr, memo, iterator) {
   return this
     .then(() => Promsync.all([
       memo,
       Promsync.all(arr)
     ]))
     .then(([origin, values]) => values.reduce(iterator, origin));
-}
+};
 
-function reduceRight(arr, memo, iterator) {
+methods.reduceRight = function (arr, memo, iterator) {
   return this
     .then(() => Promsync.all([
       memo,
       Promsync.all(arr)
     ]))
     .then(([origin, values]) => values.reduceRight(iterator, origin));
-}
+};
 
 function detect(arr, iterator) {
   return new Promsync((resolve, reject) => {
@@ -208,7 +224,9 @@ function detect(arr, iterator) {
   });
 }
 
-function detectSeries(arr, iterator=identity) {
+methods.detect = detect;
+
+methods.detectSeries = function (arr, iterator=identity) {
   return new Promsync((resolve, reject) => {
     let resolved = false;
     arr
@@ -228,36 +246,36 @@ function detectSeries(arr, iterator=identity) {
       })
       .catch(reject);
   });
-}
+};
 
-function sortBy(arr, iterator) {
+methods.sortBy = function (arr, iterator) {
   return Promsync
     .all(arr)
     .then(values => {
       values.sort(iterator);
       return values;
     });
-}
+};
 
-function some(arr, iterator) {
+methods.some = function (arr, iterator) {
   return detect
     .call(this, arr, iterator)
     .then(detected => !!detected);
-}
+};
 
-function every(arr, iterator) {
+methods.every = function (arr, iterator) {
   return filter
     .call(this, arr, iterator)
     .then(values => values.length === arr.length);
-}
+};
 
-function seriesArray(promise, tasks) {
+function seriesArray(promise, tasks, args) {
   let result = [];
   return tasks
     .reduce((p, item) => {
       return p
         .then(() => item)
-        .then(task => task())
+        .then(task => task.apply(null, args))
         .then(value => result.push(value));
     }, promise)
     .then(() => result);
@@ -277,16 +295,16 @@ function seriesObj(promise, tasks) {
     .then(() => result);
 }
 
-function series(tasks) {
+methods.series = function (tasks) {
   return Array.isArray(tasks)
     ? seriesArray(this, tasks)
     : seriesObj(this, tasks);
-}
+};
 
-function parallelArray(promise, tasks) {
+function parallelArray(promise, tasks, args) {
   return Promsync.all(tasks.map(item => promise
       .then(() => item)
-      .then(task => task())
+      .then(task => task.apply(null, args))
   ));
 }
 
@@ -302,17 +320,18 @@ function parallelObj(promise, tasks) {
   return Promsync.all(promises).then(() => result);
 }
 
-function parallel(tasks) {
+methods.parallel = function (tasks) {
   return Array.isArray(tasks)
     ? parallelArray(this, tasks)
     : parallelObj(this, tasks);
-}
+};
 
-function parallelLimitArray(promise, tasks, limit) {
+function parallelLimitArray(promise, tasks, limit, onSaturate=identity) {
   let length = tasks.length;
   let result = [];
   function concat(value) {
     result = result.concat(value);
+    onSaturate(value);
   }
   for (let i = 0; i < length; i += limit) {
     let chunk = tasks.slice(i, i + limit);
@@ -340,11 +359,11 @@ function parallelLimitObj(promise, tasks, limit) {
   return promise.then(() => result);
 }
 
-function parallelLimit(tasks, limit) {
+methods.parallelLimit = function (tasks, limit) {
   return Array.isArray(tasks)
     ? parallelLimitArray(this, tasks, limit)
     : parallelLimitObj(this, tasks, limit);
-}
+};
 
 function recurWhilst(promise, test, fn) {
   promise = promise
@@ -366,10 +385,12 @@ function whilst(test, fn) {
     });
 }
 
-function doWhilst(fn, test) {
+methods.whilst = whilst;
+
+methods.doWhilst = function (fn, test) {
   let promise = this.then(() => fn());
   return whilst.call(promise, test, fn);
-}
+};
 
 function until(test, fn) {
   let negTest = () => {
@@ -378,65 +399,112 @@ function until(test, fn) {
   return whilst.call(this, negTest, fn);
 }
 
-function doUntil(fn, test) {
+methods.until = until;
+
+methods.doUntil = function (fn, test) {
   let promise = this.then(() => fn());
   return until.call(promise, test, fn);
-}
+};
 
-function forever(fn) {
+methods.forever = function (fn) {
   return this.then(() => recurWhilst(this, () => true, fn));
-}
+};
 
 function seq(...fns) {
-  let promise = this;
   return value => {
-    fns.forEach(fn => {
-      promise = promise.then(value => fn(value));
-    });
-    return promise;
+    return fns.reduce((p, fn) => {
+      return p.then(it => fn(it));
+    }, this.then(() => value));
   };
 }
 
-function compose(...fns) {
+methods.seq = seq;
+
+methods.compose = function (...fns) {
   fns = fns.slice();
   fns.reverse();
   return seq.apply(this, fns);
-}
+};
 
-let methods = {
-  each: each,
-  eachSeries: eachSeries,
-  eachLimit: eachLimit,
-  map: map,
-  mapSeries: mapSeries,
-  mapLimit: eachLimit,
-  forEachOf: forEachOf,
-  forEachOfSeries: forEachOfSeries,
-  forEachOfLimit: forEachOfLimit,
-  filter: filter,
-  select: filter,
-  filterSeries: filterSeries,
-  selectSeries: filterSeries,
-  reduce: reduce,
-  inject: reduce,
-  foldl: reduce,
-  reduceRight: reduceRight,
-  foldr: reduceRight,
-  detect: detect,
-  detectSeries: detectSeries,
-  sortBy: sortBy,
-  some: some,
-  every: every,
-  series: series,
-  parallel: parallel,
-  parallelLimit: parallelLimit,
-  whilst: whilst,
-  doWhilst: doWhilst,
-  until: until,
-  doUntil: doUntil,
-  forever: forever,
-  compose: compose,
-  seq: seq
+methods.applyEach = function (tasks, ...args) {
+  return parallelArray(this, tasks, args);
+};
+
+methods.applyEachSeries = function (tasks, ...args) {
+  return seriesArray(this, tasks, args);
+};
+
+methods.queue = function (worker, concurrency=1) {
+  let started = false;
+  let running = false;
+  let idle = true;
+  let paused = false;
+  let processor, items, saturated, empty, drain;
+  saturated = empty = drain = identity;
+
+  let reset = () => {
+    items = [];
+  };
+
+  let kill = () => {
+    reset();
+    if (processor) return processor.stop();
+  };
+
+  let run = () => {
+    if (paused) {
+      return Promsync.resolve();
+    } else {
+      started = true;
+      running = true;
+      processor = eachLimit(this, items, concurrency, worker, saturated);
+      return processor.promise
+        .then(value => {
+          running = false;
+          items = [];
+          return value;
+        })
+        .then(drain);
+    }
+  };
+
+  let push = (...fns) => {
+    items.push(...fns);
+    return run();
+  };
+
+  let unshift = (...fns) => {
+    items.unshift(...fns);
+    return run();
+  };
+
+  let pause = () => {
+    paused = true;
+  };
+
+  let resume = () => {
+    paused = false;
+    return run();
+  };
+
+  reset();
+
+  return {
+    get length() { return items.length; },
+    get started() { return started; },
+    get running() { return running; },
+    get idle() { return !items.length; },
+    get concurrency() { return concurrency; },
+    set concurrency(value) { concurrency = value; },
+    set saturated(fn) { saturated = fn; },
+    set empty(fn) { empty = fn; },
+    set drain(fn) { drain = fn; },
+    push: push,
+    unshift: unshift,
+    pause: pause,
+    resume: resume,
+    kill: kill
+  };
 };
 
 Object.keys(methods).forEach(name => {
