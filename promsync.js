@@ -4,6 +4,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
+var _get = function get(_x14, _x15, _x16) { var _again = true; _function: while (_again) { var object = _x14, property = _x15, receiver = _x16; desc = parent = getter = undefined; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x14 = parent; _x15 = property; _x16 = receiver; _again = true; continue _function; } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
+
 function _slicedToArray(arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -14,9 +16,7 @@ var BreakRecursion = (function (_Error) {
   function BreakRecursion() {
     _classCallCheck(this, BreakRecursion);
 
-    if (_Error != null) {
-      _Error.apply(this, arguments);
-    }
+    _get(Object.getPrototypeOf(BreakRecursion.prototype), "constructor", this).apply(this, arguments);
   }
 
   _inherits(BreakRecursion, _Error);
@@ -28,9 +28,7 @@ var Promsync = (function (_Promise) {
   function Promsync() {
     _classCallCheck(this, Promsync);
 
-    if (_Promise != null) {
-      _Promise.apply(this, arguments);
-    }
+    _get(Object.getPrototypeOf(Promsync.prototype), "constructor", this).apply(this, arguments);
   }
 
   _inherits(Promsync, _Promise);
@@ -629,20 +627,12 @@ methods.queue = function (worker) {
   };
 
   var push = function push() {
-    for (var _len5 = arguments.length, fns = Array(_len5), _key5 = 0; _key5 < _len5; _key5++) {
-      fns[_key5] = arguments[_key5];
-    }
-
-    items.push.apply(items, fns);
+    items.push.apply(items, arguments);
     return run();
   };
 
   var unshift = function unshift() {
-    for (var _len6 = arguments.length, fns = Array(_len6), _key6 = 0; _key6 < _len6; _key6++) {
-      fns[_key6] = arguments[_key6];
-    }
-
-    items.unshift.apply(items, fns);
+    items.unshift.apply(items, arguments);
     return run();
   };
 
@@ -665,59 +655,59 @@ methods.queue = function (worker) {
     kill: kill
   }, {
     length: {
-      get: function () {
+      get: function get() {
         return items.length;
       },
       configurable: true,
       enumerable: true
     },
     started: {
-      get: function () {
+      get: function get() {
         return started;
       },
       configurable: true,
       enumerable: true
     },
     running: {
-      get: function () {
+      get: function get() {
         return running;
       },
       configurable: true,
       enumerable: true
     },
     idle: {
-      get: function () {
+      get: function get() {
         return !items.length;
       },
       configurable: true,
       enumerable: true
     },
     concurrency: {
-      get: function () {
+      get: function get() {
         return concurrency;
       },
-      set: function (value) {
+      set: function set(value) {
         concurrency = value;
       },
       configurable: true,
       enumerable: true
     },
     saturated: {
-      set: function (fn) {
+      set: function set(fn) {
         saturated = fn;
       },
       configurable: true,
       enumerable: true
     },
     empty: {
-      set: function (fn) {
+      set: function set(fn) {
         empty = fn;
       },
       configurable: true,
       enumerable: true
     },
     drain: {
-      set: function (fn) {
+      set: function set(fn) {
         drain = fn;
       },
       configurable: true,
@@ -728,17 +718,17 @@ methods.queue = function (worker) {
 
 Object.keys(methods).forEach(function (name) {
   var fn = methods[name];
-  Promsync[name] = fn.bind(Promsync.resolve(null));
+  Promsync[name] = fn.bind(Promsync.resolve());
   Promsync.prototype[name] = function () {
     var _this11 = this;
 
-    for (var _len7 = arguments.length, yargs = Array(_len7), _key7 = 0; _key7 < _len7; _key7++) {
-      yargs[_key7] = arguments[_key7];
+    for (var _len5 = arguments.length, yargs = Array(_len5), _key5 = 0; _key5 < _len5; _key5++) {
+      yargs[_key5] = arguments[_key5];
     }
 
     return this.then(function () {
-      for (var _len8 = arguments.length, xargs = Array(_len8), _key8 = 0; _key8 < _len8; _key8++) {
-        xargs[_key8] = arguments[_key8];
+      for (var _len6 = arguments.length, xargs = Array(_len6), _key6 = 0; _key6 < _len6; _key6++) {
+        xargs[_key6] = arguments[_key6];
       }
 
       return fn.call.apply(fn, [_this11].concat(xargs, yargs));
