@@ -5,9 +5,11 @@
   "main": "promsync.js",
   "scripts": {
     "compile": "babel -o promsync.js promsync.es",
-    "add-git-hooks": "ln -s ../../git_hooks/pre-commit.sh .git/hooks/pre-commit",
+    "add-git-hooks": "npm run remove-git-hooks && ln -s ../../git_hooks/pre-commit.sh .git/hooks/pre-commit",
+    "remove-git-hooks": "rm .git/hooks/pre-commit",
     "link-jspm": "nodemon -x \"npm run compile && jspm link npm:promsync -y\" -e es",
-    "prepublish": "npm run build",
+    "minify": "ccjs promsync.js > promsync.min.js",
+    "prepublish": "npm test && npm run compile && npm run minify",
     "test": "mocha --check-leaks --compilers es:babel/register --reporter nyan",
     "test-watch": "npm test -- --watch --growl"
   },
@@ -30,6 +32,7 @@
     "babel": "^5.6.7",
     "chai": "^3.0.0",
     "chai-as-promised": "^5.1.0",
+    "closurecompiler": "^1.5.2",
     "mocha": "^2.2.5",
     "sinon": "^1.15.3",
     "sinon-chai": "^2.8.0"

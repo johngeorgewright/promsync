@@ -14,7 +14,7 @@ changed=`git diff --cached --name-only | grep promsync.es`
 
 if [ $changed ]
 then
-  command npm test
-  command npm run build
+  command npm run precompile
   git add promsync.js
+  git add promsync.min.js
 fi
