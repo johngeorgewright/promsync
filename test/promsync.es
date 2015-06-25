@@ -1,5 +1,5 @@
-/*eslint no-unused-expressions:0*/
 /*eslint-env node, mocha*/
+/*eslint no-unused-expressions:0*/
 
 import Promsync from '../promsync.es';
 import chai from 'chai';
@@ -110,7 +110,7 @@ describe('Promsync', () => {
         let result = [];
         return resolve(['foo', 'bar'])
           .eachLimit(1, (v, i) => result.push(v + i))
-          .then(() => result).should.eventually.eql(['foo0', 'bar1']);
+          .then(() => result.should.eql(['foo0', 'bar1']));
       });
 
       it('will resolve the original results', () => {
@@ -119,15 +119,19 @@ describe('Promsync', () => {
           .should.eventually.eql(['foo', 'bar']);
       });
 
-      it('call chunks in series', () => {
+      it('calls chunks in series', () => {
+        let first = sinon.spy(function first() {});
+        let second = sinon.spy(function second() {});
+        let third = sinon.spy(function third() {});
         let arr = [
-          resolve(2, 20),
-          resolve(1, 10),
-          resolve(3)
+          resolve(second, 20),
+          resolve(first, 10),
+          resolve(third)
         ];
         return Promsync
-          .eachLimit(arr, 2)
-          .should.eventually.eql([1, 2, 3]);
+          .eachLimit(arr, 2, fn => fn())
+          .then(() => first.should.have.been.calledBefore(second))
+          .then(() => second.should.have.been.calledBefore(third));
       });
     });
 
@@ -902,9 +906,14 @@ describe('Promsync', () => {
         });
 
         it('will be true while the queue is running', () => {
-          let promise = queue.push(Array(1000));
+          queue.push(resolve('foo', 10));
           queue.running.should.be.true;
-          return promise.then(() => queue.running.should.be.false);
+        });
+
+        it(`will be flase once it's finished`, () => {
+          return queue
+            .push('mung')
+            .then(() => queue.running.should.be.false);
         });
       });
 
@@ -929,15 +938,15 @@ describe('Promsync', () => {
         });
       });
 
-      describe.skip('.concurrency', () => {});
+      describe('.concurrency', () => {});
 
-      describe.skip('.saturated', () => {});
+      describe('.saturated', () => {});
 
-      describe.skip('.empty', () => {});
+      describe('.empty', () => {});
 
-      describe.skip('.drain', () => {});
+      describe('.drain', () => {});
 
-      describe.skip('.kill()', () => {});
+      describe('.kill()', () => {});
 
     });
 
