@@ -25,7 +25,7 @@ Todo
 - [x] reduceRight
 - [x] detect
 - [x] detectSeries
-- [x] sortBy
+- [ ] sortBy
 - [x] some
 - [x] every
 - [x] concat
@@ -38,15 +38,15 @@ Todo
 - [x] parallelLimit
 - [x] whilst
 - [x] doWhilst
-- [ ] until
-- [ ] doUntil
-- [ ] forever
-- [ ] waterfall
-- [ ] compose
-- [ ] seq
-- [ ] applyEach
-- [ ] applyEachSeries
-- [ ] queue
+- [x] until
+- [x] doUntil
+- [x] forever
+- [x] waterfall
+- [x] compose
+- [x] seq
+- [x] applyEach
+- [x] applyEachSeries
+- [x] queue
 - [ ] priorityQueue
 - [ ] cargo
 - [ ] auto
@@ -182,6 +182,146 @@ Promsync
   })
   .then(() => doSomethingWith(configs))
   .catch(err => console.error(err.message));
+```
+
+#### Related
+
+- `forEachOfSeries(obj, [iterator])`
+- `forEachOfLimit(obj, limit, [iterator])`
+
+### map(arr, [iterator])
+
+Produces a new array of values by mapping each value in arr through the iterator function. The iterator is called with an item from arr and it's key.
+
+Note, that since this function applies the iterator to each item in parallel, there is no guarantee that the iterator functions will complete in order. However, the results array will be in the same order as the original arr.
+
+#### Arguments
+
+arr - An array to iterate over.
+iterator(item, key) - A function to apply to each item in arr. The iterator is passed a callback(err, transformed) which must be called once it has completed with an error (which can be null) and a transformed item.
+
+#### Example
+
+```js
+Promsync.map(['file1','file2','file3'], fs.stat).then(function (results) {
+    // results is now an array of stats for each file
+});
+```
+
+#### Related
+
+- `mapSeries(arr, [iterator])
+- `mapLimit(arr, limit, [iterator])
+
+### filter(arr, [iterator])
+
+Promises a new array of all the values in `arr` which resolve a truth test. This operation is performed in parallel, but the results array will be in the same order as the original.
+
+#### Arguments
+
+- `arr` - An array (or promise of an array) to iterator over.
+- `iterator(item, key)` - A truth test to apply to each item in `arr`.
+
+#### Example
+
+```js
+Promsync.filter(['file1', 'file2', 'file3'], fs.exists).then(results => {
+  // results no equals an array of the existing files
+});
+```
+
+***
+
+#### Related
+- `filterSeries(arr, [iterator])`
+
+### `reject(arr, [iterator])`
+
+The opposite of [`filter`](#filterarr-iterator). Removes values that resolve a
+truth test.
+
+***
+
+#### Related
+
+- `rejectSeries(arr, [iterator])`
+
+***
+
+### `reduce(arr, memo, [iterator])`
+
+Resolved `arr` into a single value using an iterator to return each successive step. memo is the initial state of the reduction. This function only operates in series.
+
+#### Arguments
+
+- `arr` - An array to iterate over.
+- `memo` - The initial state of the reduction.
+- `iterator(memo, item, key)` - A function applied to each item in the array to produce the next step in the reduction.
+
+#### Example
+
+```js
+Promsync.reduce([1,2,3], 0, (memo, item) => {
+    // pointless async:
+    return new Promise((resolve) => {
+      process.nextTick(() => {
+          resolve(memo + item);
+      });
+    });
+}).then(result => {
+    // result is now equal to the last value of memo, which is 6
+});
+```
+
+#### Related
+
+- `reduceRight(arr, memo, [iterator])`
+
+### `detect(arr, [iterator])`
+
+Returns the first value in `arr` that resolves a truth test. The iterator is applied in parallel, meaning the first iterator to return true will fire the detect callback with that result. That means the result might not be the first item in the original arr (in terms of order) that passes the test.
+
+If order within the original `arr` is important, then look at `detectSeries`.
+
+#### Arguments
+
+- `arr` - An array to iterate over.
+- `iterator(item, callback)` - A truth test to apply to each item in arr.
+
+#### Example
+
+```js
+Promsync.detect(['file1','file2','file3'], fs.exists).then(result => {
+  // result now equals the first file in the list that exists
+});
+```
+
+#### Related
+
+- `detectSeries(arr, [iterator])`
+
+### `sortBy(arr, [iterator])`
+
+Sorts a list by the results of running each `arr` value through an async iterator.
+
+#### Arguments
+
+- `arr` - An array to iterate over.
+- `iterator(item, key)` - A function to apply to each item in arr.
+
+#### Example
+
+```js
+Promsync.sortBy(['file1','file2','file3'], file => {
+    return new Promsync(resolve => {
+      fs.stat(file, (err, stats) => {
+        resolve(stats.mtime);
+      });
+    });
+}).then(results => {
+    // results is now the original array of files sorted by
+    // modified date
+});
 ```
 
 *... To Be Continued*
