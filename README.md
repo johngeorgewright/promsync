@@ -1,6 +1,8 @@
 Promsync
 ========
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/johngeorgewright/promsync.svg)](https://greenkeeper.io/)
+
 > Async.js style utility belt for the promise pattern
 
 Todo
